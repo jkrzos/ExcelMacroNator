@@ -1,0 +1,281 @@
+'Preliminary setup before running macros:
+
+'Create a tab named: "SQL" - this tab will show in col A dbs you have access too
+
+'Col B will show total dbs that exist on sql server
+
+'in D1 add the SQL Server name that you are looking to get info on then run 'GetPrelimData'
+
+'Run the 'GetDataFromADO' macro to get the details of each sql server database to their individual tabs.
+
+ 
+
+ 
+
+Sub GetPrelimData()
+
+Dim lngCounter As Long
+
+Dim strDatabaseName, strSQL, strSQL2, strSQL3  As String
+
+ 
+
+    'Clear the contents of the sheet
+
+    Sheets("SQL").Range("A2:B1000").ClearContents
+
+ 
+
+    'Declare variables'
+
+        Set objMyConn = New ADODB.Connection
+
+        Set objMyRecordset = New ADODB.Recordset
+
+ 
+
+    'Open Connection
+
+        objMyConn.ConnectionString = "Provider=SQLOLEDB;Data Source=" & Sheets("SQL").Range("D1").Value & ";Trusted_connection=yes"
+
+        objMyConn.Open
+
+ 
+
+    'Set and Excecute SQL Command
+
+    strSQL = "SELECT name FROM sys.sysdatabases WHERE HAS_DBACCESS(Name) = 1 order by name ASC"
+
+    Sheets("SQL").Activate
+
+ 
+
+    'Open Recordset
+
+    Set objMyRecordset.ActiveConnection = objMyConn
+
+    objMyRecordset.Open strSQL
+
+   
+
+    'Copy Data to Excel
+
+    ActiveSheet.Range("A2").CopyFromRecordset (objMyRecordset)
+
+    objMyRecordset.Close
+
+   
+
+    
+
+    'Set and Excecute SQL Command
+
+    strSQL = "SELECT name FROM sys.sysdatabases db order by name ASC"
+
+    Sheets("SQL").Activate
+
+ 
+
+    'Open Recordset
+
+    'Set objMyRecordset.ActiveConnection = objMyConn
+
+    objMyRecordset.Open strSQL
+
+   
+
+    'Copy Data to Excel
+
+    ActiveSheet.Range("B2").CopyFromRecordset (objMyRecordset)
+
+   
+
+    
+
+    
+
+ 
+
+End Sub
+
+ 
+
+Sub GetDataFromADO()
+
+Dim lngCounter As Long
+
+Dim strDatabaseName As String
+
+ 
+
+Call Remove_tabs_Blue
+
+ 
+
+Sheets("SQL").Activate
+
+lngCounter = 2
+
+Do While Range("A" & lngCounter).Value <> Empty
+
+ 
+
+    strDatabaseName = Range("A" & lngCounter).Value
+
+ 
+
+    Sheets.Add
+
+    ActiveSheet.Name = strDatabaseName
+
+    ActiveSheet.Tab.Color = 15773696
+
+ 
+
+ 
+
+    'Declare variables'
+
+        Set objMyConn = New ADODB.Connection
+
+        Set objMyRecordset = New ADODB.Recordset
+
+        Dim strSQL As String
+
+ 
+
+        strSQL = ""
+
+ 
+
+    'Open Connection
+
+        objMyConn.ConnectionString = "Provider=SQLOLEDB;Data Source=" & Sheets("SQL").Range("D1").Value & ";Trusted_connection=yes"
+
+        objMyConn.Open strSQL
+
+   
+
+    'Set and Excecute SQL Command
+
+    strSQL = "SELECT a.*, b.username, b.createdate FROM (" & _
+
+             "SELECT Left(@@Version, Charindex('-', @@version) - 2) As VersionName, " & _
+
+             "Convert(nvarchar(50),SERVERPROPERTY('MachineName'))+'-'+Convert(nvarchar(50),SERVERPROPERTY('ServerName')) as HostName," & _
+
+             "'master' as DatabaseName, TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH, IS_NULLABLE" & _
+
+             " FROM " & strDatabaseName & ".INFORMATION_SCHEMA.Columns ) a "
+
+    strSQL2 = "LEFT JOIN (" & _
+
+              "select so.name, su.name as username, so.crdate as createdate " & _
+
+              "from sysobjects so join sysusers su on so.uid = su.uid  ) b " & _
+
+              "ON a.TABLE_NAME = b.name"
+
+   
+
+    'Open Recordset'
+
+    Set objMyRecordset.ActiveConnection = objMyConn
+
+    objMyRecordset.Open strSQL & strSQL2
+
+ 
+
+    'add headers'
+
+    Sheets("HeaderInfo").Select
+
+    Rows("2:2").Select
+
+    Selection.Copy
+
+    Sheets(strDatabaseName).Select
+
+    Range("A1").Select
+
+    ActiveSheet.Paste
+
+   
+
+    'Copy Data to Excel'
+
+    ActiveSheet.Range("C2").CopyFromRecordset (objMyRecordset)
+
+ 
+
+    'some slight formatting
+
+    Cells.Select
+
+    Cells.EntireColumn.AutoFit
+
+    Rows("1:1").Select
+
+    Selection.AutoFilter
+
+    Range("A1").Select
+
+ 
+
+    lngCounter = lngCounter + 1
+
+    Sheets("SQL").Activate
+
+Loop
+
+ 
+
+End Sub
+
+ 
+
+ 
+
+ 
+
+Sub Remove_tabs_Blue()
+
+Dim ws As Worksheet
+
+Dim starting_ws As Worksheet
+
+Set starting_ws = ActiveSheet 'remember which worksheet is active in the beginning
+
+ 
+
+Application.DisplayAlerts = False
+
+ 
+
+For Each ws In ThisWorkbook.Worksheets
+
+    ws.Activate
+
+    If ActiveSheet.Tab.Color = 15773696 Then
+
+        ActiveSheet.Delete
+
+    End If
+
+ 
+
+Next
+
+ 
+
+starting_ws.Activate 'activate the worksheet that was originally active
+
+Application.DisplayAlerts = True
+
+ 
+
+ 
+
+   
+
+End Sub
